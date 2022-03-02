@@ -2,7 +2,7 @@
 
 * Clone the project.
 * `cd` into the project folder.
-* Run `npm install`.
+* Run `npm ci`.
 * Run `serverless deploy`.
 
 ## Summary
