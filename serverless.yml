@@ -1,0 +1,144 @@
+service: sls-auth-dynamodb
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: us-east-1
+
+  environment:
+    DYNAMO_TABLE_NAME: UserPosts
+    ENVIRONMENT: DEVELOPMENT
+    EMAIL_PARTITION_INDEX: EmailPartitionIndex
+    OTHER_INDEX: OtherIndex
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - lambda:InvokeFunction
+          Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMO_TABLE_NAME}"
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMO_TABLE_NAME}/index/*"
+
+functions:
+  register:
+    handler: src/handler/auth/register.handler
+    events:
+      - http:
+          path: user/register
+          method: post
+          cors: true
+
+  login:
+    handler: src/handler/auth/login.handler
+    events:
+      - http:
+          path: user/login
+          method: post
+          cors: true
+
+  authCheck:
+    handler: src/middleware/auth-check.handler
+
+  listPosts:
+    handler: src/handler/post/list-posts.handler
+    events:
+      - http:
+          path: posts
+          method: get
+          cors: true
+          authorizer: authCheck
+
+  createPost:
+    handler: src/handler/post/create-post.handler
+    events:
+      - http:
+          path: posts
+          method: post
+          cors: true
+          authorizer: authCheck
+
+  showPost:
+    handler: src/handler/post/show-post.handler
+    events:
+      - http:
+          path: posts/{id}
+          method: get
+          cors: true
+          authorizer: authCheck
+
+  updatePost:
+    handler: src/handler/post/update-post.handler
+    events:
+      - http:
+          path: posts/{id}
+          method: put
+          cors: true
+          authorizer: authCheck
+
+  deletePost:
+    handler: src/handler/post/delete-post.handler
+    events:
+      - http:
+          path: posts/{id}
+          method: delete
+          cors: true
+          authorizer: authCheck
+
+resources:
+  Resources:
+    UsersDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: postId
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: postId
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMO_TABLE_NAME}
+
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.EMAIL_PARTITION_INDEX}
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+              - AttributeName: postId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: "1"
+              WriteCapacityUnits: "1"
+
+          - IndexName: ${self:provider.environment.OTHER_INDEX}
+            KeySchema:
+              - AttributeName: postId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: "1"
+              WriteCapacityUnits: "1"
