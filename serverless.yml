@@ -5,8 +5,8 @@ frameworkVersion: '3'
 provider:
   name: aws
   runtime: nodejs14.x
-  stage: dev
-  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
 
   environment:
     DYNAMO_TABLE_NAME: UserPosts
@@ -26,12 +26,12 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - lambda:InvokeFunction
-          Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMO_TABLE_NAME}"
+          Resource: 'arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.DYNAMO_TABLE_NAME}'
         - Effect: Allow
           Action:
             - dynamodb:Query
             - dynamodb:Scan
-          Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMO_TABLE_NAME}/index/*"
+          Resource: 'arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:provider.environment.DYNAMO_TABLE_NAME}/index/*'
 
 functions:
   register:
